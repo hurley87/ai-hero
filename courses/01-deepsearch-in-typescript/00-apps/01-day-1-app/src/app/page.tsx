@@ -1,22 +1,53 @@
 import { PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { auth } from "~/server/auth/index.ts";
+import { getChats, getChat } from "~/server/db/queries.ts";
 import { ChatPage } from "./chat.tsx";
 import { AuthButton } from "../components/auth-button.tsx";
+import type { Message } from "ai";
 
-const chats = [
-  {
-    id: "1",
-    title: "My First Chat",
-  },
-];
-
-const activeChatId = "1";
-
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string }>;
+}) {
+  const { id: chatIdFromUrl } = await searchParams;
   const session = await auth();
   const userName = session?.user?.name ?? "Guest";
   const isAuthenticated = !!session?.user;
+  const userId = session?.user?.id;
+
+  // Generate stable chatId - either from URL or a new UUID
+  const chatId = chatIdFromUrl ?? crypto.randomUUID();
+  const isNewChat = !chatIdFromUrl;
+
+  // Fetch chats from database if user is authenticated
+  const chats = isAuthenticated && userId ? await getChats(userId) : [];
+
+  // Fetch individual chat if id is provided and user is authenticated
+  let chat = null;
+  let initialMessages: Message[] = [];
+  
+  if (chatIdFromUrl && userId) {
+    chat = await getChat(chatIdFromUrl, userId);
+    
+    // Map database messages to AI SDK Message format
+    if (chat?.messages) {
+      initialMessages = chat.messages.map((msg) => ({
+        id: msg.id,
+        // msg.role is typed as string, so we need to cast it to the correct type
+        role: msg.role as "user" | "assistant",
+        // msg.parts is typed as unknown[], so we need to cast it to the correct type
+        parts: msg.parts as Message["parts"],
+        // content is not persisted, so we can safely pass an empty string,
+        // because parts are always present, and the AI SDK will use the parts to construct the content
+        content: "",
+      }));
+    }
+  }
+
+  // Find active chat for highlighting
+  const activeChatId = chat?.id ?? null;
 
   return (
     <div className="flex h-screen bg-gray-950">
@@ -41,7 +72,7 @@ export default async function HomePage() {
             chats.map((chat) => (
               <div key={chat.id} className="flex items-center gap-2">
                 <Link
-                  href={`/?chatId=${chat.id}`}
+                  href={`/?id=${chat.id}`}
                   className={`flex-1 rounded-lg p-3 text-left text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                     chat.id === activeChatId
                       ? "bg-gray-700"
@@ -68,7 +99,14 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <ChatPage userName={userName} />
+      <ChatPage 
+        key={chatId}
+        userName={userName} 
+        isAuthenticated={isAuthenticated} 
+        chatId={chatId} 
+        isNewChat={isNewChat}
+        initialMessages={initialMessages}
+      />
     </div>
   );
 }

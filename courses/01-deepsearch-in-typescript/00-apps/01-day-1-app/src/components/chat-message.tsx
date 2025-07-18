@@ -1,8 +1,12 @@
 import ReactMarkdown, { type Components } from "react-markdown";
+import type { Message } from "ai";
+import { Search } from "lucide-react";
+
+// Extract MessagePart type from Message
+export type MessagePart = NonNullable<Message["parts"]>[number];
 
 interface ChatMessageProps {
-  text: string;
-  role: string;
+  message: Message;
   userName: string;
 }
 
@@ -38,8 +42,96 @@ const Markdown = ({ children }: { children: string }) => {
   return <ReactMarkdown components={components}>{children}</ReactMarkdown>;
 };
 
-export const ChatMessage = ({ text, role, userName }: ChatMessageProps) => {
-  const isAI = role === "assistant";
+const ToolInvocation = ({ part }: { part: MessagePart }) => {
+  if (part.type !== "tool-invocation") return null;
+
+  const { toolInvocation } = part;
+
+  if (toolInvocation.state === "partial-call") {
+    return (
+      <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-900/20 p-3 text-blue-300">
+        <Search className="size-4 animate-spin" />
+        <span className="text-sm">Searching for: {toolInvocation.args.query}...</span>
+      </div>
+    );
+  }
+
+  if (toolInvocation.state === "call") {
+    return (
+      <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-900/20 p-3 text-blue-300">
+        <Search className="size-4" />
+        <span className="text-sm">Searched for: {toolInvocation.args.query}</span>
+      </div>
+    );
+  }
+
+  if (toolInvocation.state === "result") {
+    const results = toolInvocation.result;
+    const isArray = Array.isArray(results);
+    const resultCount = isArray ? results.length : 0;
+
+    return (
+      <div className="mb-4 rounded-lg bg-green-900/20 p-3">
+        <div className="mb-2 flex items-center gap-2 text-green-300">
+          <Search className="size-4" />
+          <span className="text-sm font-medium">
+            Found {resultCount} results for: {toolInvocation.args.query}
+          </span>
+        </div>
+        {isArray && results.length > 0 && (
+          <div className="space-y-2">
+            {results.slice(0, 3).map((result: any, index: number) => (
+              <div key={index} className="rounded bg-green-900/10 p-2 text-sm">
+                <div className="font-medium text-green-200">{result.title}</div>
+                {result.snippet && (
+                  <div className="mt-1 text-xs text-green-300/80">
+                    {result.snippet.length > 100
+                      ? `${result.snippet.slice(0, 100)}...`
+                      : result.snippet}
+                  </div>
+                )}
+                {result.link && (
+                  <a
+                    href={result.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 block text-xs text-blue-400 underline"
+                  >
+                    {result.link}
+                  </a>
+                )}
+              </div>
+            ))}
+            {results.length > 3 && (
+              <div className="text-xs text-green-300/60">
+                ... and {results.length - 3} more results
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+};
+
+const MessagePartRenderer = ({ part }: { part: MessagePart }) => {
+  switch (part.type) {
+    case "text":
+      return <Markdown>{part.text}</Markdown>;
+    
+    case "tool-invocation":
+      return <ToolInvocation part={part} />;
+    
+    // Add cases for other part types as needed
+    default:
+      return null;
+  }
+};
+
+export const ChatMessage = ({ message, userName }: ChatMessageProps) => {
+  const isAI = message.role === "assistant";
 
   return (
     <div className="mb-6">
@@ -53,7 +145,14 @@ export const ChatMessage = ({ text, role, userName }: ChatMessageProps) => {
         </p>
 
         <div className="prose prose-invert max-w-none">
-          <Markdown>{text}</Markdown>
+          {message.parts ? (
+            message.parts.map((part, index) => (
+              <MessagePartRenderer key={index} part={part} />
+            ))
+          ) : (
+            // Fallback to content if parts is not available
+            <Markdown>{message.content}</Markdown>
+          )}
         </div>
       </div>
     </div>

@@ -13,6 +13,8 @@ export const env = createEnv({
         ? z.string()
         : z.string().optional(),
     DATABASE_URL: z.string().url(),
+    OPENAI_API_KEY: z.string().min(1),
+    SERPER_API_KEY: z.string().min(1),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -33,6 +35,8 @@ export const env = createEnv({
     REDIS_URL: process.env.REDIS_URL,
     AUTH_SECRET: process.env.AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    SERPER_API_KEY: process.env.SERPER_API_KEY,
     NODE_ENV: process.env.NODE_ENV,
   },
   /**
