@@ -40,6 +40,6 @@
     "**/*.cjs",
     "**/*.js",
     ".next/types/**/*.ts"
-  ],
+, "../01-day-1-app/evals/initial.eval.ts"  ],
   "exclude": ["node_modules"]
 }

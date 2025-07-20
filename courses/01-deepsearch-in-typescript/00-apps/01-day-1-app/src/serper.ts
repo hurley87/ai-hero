@@ -1,5 +1,3 @@
-import { cacheWithRedis } from "~/server/redis/redis";
-
 export declare namespace SerperTool {
   export type SearchInput = {
     q: string;
@@ -56,44 +54,29 @@ export declare namespace SerperTool {
   }
 }
 
-const fetchFromSerper = cacheWithRedis(
-  "serper",
-  async (
-    url: string,
-    options: Omit<RequestInit, "headers"> & { signal: AbortSignal | undefined },
-  ): Promise<SerperTool.SearchResult> => {
-    if (!process.env.SERPER_API_KEY) {
-      throw new Error("SERPER_API_KEY is not set in .env");
-    }
-
-    const response = await fetch(`https://google.serper.dev${url}`, {
-      ...options,
-      headers: {
-        "X-API-KEY": process.env.SERPER_API_KEY,
-        "Content-Type": "application/json",
-      },
-      signal: options.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-
-    const json = await response.json();
-
-    return json;
-  },
-);
-
 export const searchSerper = async (
   body: SerperTool.SearchInput,
   signal: AbortSignal | undefined,
-) => {
-  const results = await fetchFromSerper(`/search`, {
+): Promise<SerperTool.SearchResult> => {
+  if (!process.env.SERPER_API_KEY) {
+    throw new Error("SERPER_API_KEY is not set in .env");
+  }
+
+  const response = await fetch(`https://google.serper.dev/search`, {
     method: "POST",
+    headers: {
+      "X-API-KEY": process.env.SERPER_API_KEY,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
     signal,
   });
 
-  return results;
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const json = await response.json();
+
+  return json;
 };
