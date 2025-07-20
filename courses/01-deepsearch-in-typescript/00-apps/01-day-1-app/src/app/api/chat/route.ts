@@ -10,14 +10,23 @@ import { env } from "~/env";
 import { model } from "~/models";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth";
-import { checkRateLimit, recordRequest, upsertChat } from "~/server/db/queries";
+import { upsertChat } from "~/server/db/queries";
 import { bulkCrawlWebsites } from "~/server/scraper";
+import { checkRateLimit, recordRateLimit } from "~/server/redis/rate-limit";
 
 export const maxDuration = 60;
 
 const langfuse = new Langfuse({
   environment: env.NODE_ENV,
 });
+
+// Rate limit configuration: 1 request per 5 seconds for testing
+const rateLimitConfig = {
+  maxRequests: 1,
+  maxRetries: 3,
+  windowMs: 5_000,
+  keyPrefix: "global_llm",
+};
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -28,30 +37,38 @@ export async function POST(request: Request) {
 
   // Check rate limit before processing the request
   try {
-    const rateLimitCheck = await checkRateLimit(session.user.id);
+    const rateLimitCheck = await checkRateLimit(rateLimitConfig);
     
-    if (!rateLimitCheck.canMakeRequest) {
-      return new Response(
-        JSON.stringify({
-          error: "Rate limit exceeded",
-          message: `You have exceeded your daily limit of ${rateLimitCheck.limit} requests. Current count: ${rateLimitCheck.currentCount}. Limit resets at midnight UTC.`,
-          currentCount: rateLimitCheck.currentCount,
-          limit: rateLimitCheck.limit,
-        }),
-        { 
-          status: 429,
-          headers: {
-            "Content-Type": "application/json",
-            "X-RateLimit-Limit": rateLimitCheck.limit.toString(),
-            "X-RateLimit-Remaining": Math.max(0, rateLimitCheck.limit - rateLimitCheck.currentCount).toString(),
-            "X-RateLimit-Reset": new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    if (!rateLimitCheck.allowed) {
+      console.log("Rate limit exceeded, waiting...");
+      const isAllowed = await rateLimitCheck.retry();
+      
+      if (!isAllowed) {
+        return new Response(
+          JSON.stringify({
+            error: "Rate limit exceeded",
+            message: `Rate limit exceeded. Please try again later.`,
+            resetTime: new Date(rateLimitCheck.resetTime).toISOString(),
+            remaining: rateLimitCheck.remaining,
+          }),
+          { 
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "X-RateLimit-Limit": rateLimitConfig.maxRequests.toString(),
+              "X-RateLimit-Remaining": rateLimitCheck.remaining.toString(),
+              "X-RateLimit-Reset": new Date(rateLimitCheck.resetTime).toISOString(),
+            }
           }
-        }
-      );
+        );
+      }
     }
 
     // Record the request (only if rate limit check passed)
-    await recordRequest(session.user.id);
+    await recordRateLimit({
+      windowMs: rateLimitConfig.windowMs,
+      keyPrefix: rateLimitConfig.keyPrefix,
+    });
   } catch (error) {
     console.error("Rate limit check failed:", error);
     return new Response("Internal server error", { status: 500 });
