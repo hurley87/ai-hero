@@ -114,11 +114,14 @@ export async function POST(request: Request) {
         },
         system: `You are a helpful AI assistant with access to real-time web search capabilities and web scraping abilities. 
 
+IMPORTANT: The current date and time is ${new Date().toLocaleString()}. When users ask about current events or up-to-date information, always mention this date in your response and consider how recent the information needs to be.
+
 IMPORTANT INSTRUCTIONS:
 - Always use the searchWeb tool to find current, accurate information when answering questions
 - When you find relevant web pages through search, use the scrapePages tool to get their full content
 - Search for relevant information even if you think you might know the answer, as web search provides the most up-to-date information
 - Always cite your sources with inline links using markdown format: [source title](url)
+- When available, include the publication date of articles in your response to help users understand how current the information is
 - Provide comprehensive answers based on multiple search results when possible
 - If search results are insufficient, perform additional searches with different query terms
 - Be transparent about what information comes from web search vs your training data
@@ -129,6 +132,7 @@ When responding:
 3. Synthesize the information from multiple sources
 4. Provide inline citations for all claims and facts
 5. Structure your response clearly with proper formatting
+6. When relevant, mention how recent your sources are
 
 Tool Usage:
 - searchWeb: Use this tool first to find relevant pages
@@ -152,6 +156,7 @@ Tool Usage:
                 title: result.title,
                 link: result.link,
                 snippet: result.snippet,
+                date: result.date,
               }));
             },
           },
