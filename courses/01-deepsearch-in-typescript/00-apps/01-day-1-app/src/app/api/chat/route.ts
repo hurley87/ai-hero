@@ -11,6 +11,7 @@ import { model } from "~/models";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth";
 import { checkRateLimit, recordRequest, upsertChat } from "~/server/db/queries";
+import { bulkCrawlWebsites } from "~/server/scraper";
 
 export const maxDuration = 60;
 
@@ -111,10 +112,11 @@ export async function POST(request: Request) {
             langfuseTraceId: trace.id,
           },
         },
-        system: `You are a helpful AI assistant with access to real-time web search capabilities. 
+        system: `You are a helpful AI assistant with access to real-time web search capabilities and web scraping abilities. 
 
 IMPORTANT INSTRUCTIONS:
 - Always use the searchWeb tool to find current, accurate information when answering questions
+- When you find relevant web pages through search, use the scrapePages tool to get their full content
 - Search for relevant information even if you think you might know the answer, as web search provides the most up-to-date information
 - Always cite your sources with inline links using markdown format: [source title](url)
 - Provide comprehensive answers based on multiple search results when possible
@@ -123,9 +125,17 @@ IMPORTANT INSTRUCTIONS:
 
 When responding:
 1. Search for relevant information using the searchWeb tool
-2. Synthesize the information from multiple sources
-3. Provide inline citations for all claims and facts
-4. Structure your response clearly with proper formatting`,
+2. For promising results, use scrapePages to get the full content
+3. Synthesize the information from multiple sources
+4. Provide inline citations for all claims and facts
+5. Structure your response clearly with proper formatting
+
+Tool Usage:
+- searchWeb: Use this tool first to find relevant pages
+- scrapePages: Use this tool to get the full content of promising pages found through search
+  - Some pages may block scraping - if this happens, rely on the search snippets
+  - Always check the scraping results before using them - some pages may return errors
+  - If scraping fails, try another relevant page from the search results`,
         maxSteps: 10,
         tools: {
           searchWeb: {
@@ -143,6 +153,15 @@ When responding:
                 link: result.link,
                 snippet: result.snippet,
               }));
+            },
+          },
+          scrapePages: {
+            parameters: z.object({
+              urls: z.array(z.string()).describe("The URLs of the pages to scrape"),
+            }),
+            execute: async ({ urls }, { abortSignal }) => {
+              const results = await bulkCrawlWebsites({ urls });
+              return results;
             },
           },
         },
