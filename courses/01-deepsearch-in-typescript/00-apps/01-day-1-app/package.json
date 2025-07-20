@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "evals": "evalite watch",
     "build": "next build",
     "check": "next lint && tsc --noEmit",
     "db:generate": "drizzle-kit generate",

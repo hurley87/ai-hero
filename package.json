@@ -21,11 +21,8 @@
     "@types/react-dom": "^19.0.3",
     "@types/turndown": "^5.0.5",
     "ai": "^4.2.0",
-    "autoevals": "^0.0.111",
     "cheerio": "^1.0.0",
     "dedent": "^1.5.3",
-    "dotenv": "^16.4.7",
-    "evalite": "0.8.0",
     "express": "^4.21.2",
     "hono": "^4.6.17",
     "lucide-react": "^0.474.0",
@@ -36,10 +33,10 @@
     "robots-parser": "^3.0.1",
     "turndown": "^7.2.0",
     "unstorage": "^1.13.1",
-    "vitest": "^2.0.0",
     "zod": "^3.24.1"
   },
   "scripts": {
+    "evals": "evalite watch",
     "articles:dev": "tsx --env-file=.env internal/watch-articles.ts",
     "articles:feedback": "tsx --env-file=.env internal/read-articles.ts",
     "lint": "tsc --project ./examples/tsconfig.json && eslint",
@@ -67,9 +64,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoevals": "^0.0.111",
     "chokidar": "^4.0.3",
     "commander": "^13.0.0",
+    "dotenv": "^16.4.7",
     "eslint": "^9.17.0",
+    "evalite": "0.8.0",
     "front-matter": "^4.0.2",
     "husky": "^9.1.7",
     "next": "15.1.7",
@@ -81,7 +81,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.19.0",
-    "vite": "^6.0.11"
+    "vite": "^6.0.11",
+    "vitest": "^2.1.1"
   },
   "prettier": {
     "printWidth": 55
