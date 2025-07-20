@@ -8,6 +8,7 @@ import { env } from "../src/env";
 import { devData } from "./dev";
 import { ciData } from "./ci";
 import { regressionData } from "./regression";
+import { AnswerRelevancy } from "../src/answer-relevancy-scorer";
 
 // Reuse the factuality checker from initial.eval.ts
 const checkFactuality = async (opts: {
@@ -110,5 +111,6 @@ evalite("Deep Search Web Dev Eval", {
       },
     },
     Factuality,
+    AnswerRelevancy,
   ],
 }); 
