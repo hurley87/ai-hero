@@ -18,6 +18,10 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    // Langfuse Configuration
+    LANGFUSE_PUBLIC_KEY: z.string().min(1),
+    LANGFUSE_SECRET_KEY: z.string().min(1),
+    LANGFUSE_BASEURL: z.string().url().default("https://cloud.langfuse.com"),
   },
 
   /**
@@ -38,6 +42,10 @@ export const env = createEnv({
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     SERPER_API_KEY: process.env.SERPER_API_KEY,
     NODE_ENV: process.env.NODE_ENV,
+    // Langfuse Configuration
+    LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
+    LANGFUSE_BASEURL: process.env.LANGFUSE_BASEURL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

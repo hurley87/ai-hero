@@ -5,12 +5,18 @@ import {
   appendResponseMessages,
 } from "ai";
 import { z } from "zod";
+import { Langfuse } from "langfuse";
+import { env } from "~/env";
 import { model } from "~/models";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth";
 import { checkRateLimit, recordRequest, upsertChat } from "~/server/db/queries";
 
 export const maxDuration = 60;
+
+const langfuse = new Langfuse({
+  environment: env.NODE_ENV,
+});
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -63,6 +69,13 @@ export async function POST(request: Request) {
       // Use the provided stable chatId
       const currentChatId = chatId;
 
+      // Create a Langfuse trace for this chat session
+      const trace = langfuse.trace({
+        sessionId: currentChatId,
+        name: "chat",
+        userId: session.user.id,
+      });
+
       // If this is a new chat, send the chat ID to the frontend
       if (isNewChat) {
         dataStream.writeData({
@@ -91,6 +104,13 @@ export async function POST(request: Request) {
       const result = streamText({
         model,
         messages,
+        experimental_telemetry: { 
+          isEnabled: true,
+          functionId: "agent",
+          metadata: {
+            langfuseTraceId: trace.id,
+          },
+        },
         system: `You are a helpful AI assistant with access to real-time web search capabilities. 
 
 IMPORTANT INSTRUCTIONS:
@@ -147,6 +167,9 @@ When responding:
               title: chatTitle,
               messages: updatedMessages,
             });
+
+            // Flush the Langfuse trace
+            await langfuse.flushAsync();
           } catch (error) {
             console.error("Failed to save chat:", error);
             // Don't throw here to avoid breaking the response stream
